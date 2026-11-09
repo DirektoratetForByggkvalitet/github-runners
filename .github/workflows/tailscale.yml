@@ -28,12 +28,15 @@ jobs:
       - name: Install Tailscale
         env:
           HOMEBREW_NO_ASK: 1
-        run: /opt/homebrew/bin/brew install tailscale
+        run: |
+          eval "$(/opt/homebrew/bin/brew shellenv zsh)"
+          /opt/homebrew/bin/brew install tailscale
 
       # tailscaled needs root to create the network interface, so it runs as a
       # system LaunchDaemon. Requires passwordless sudo for the runner user.
       - name: Start tailscaled
         run: |
+          eval "$(/opt/homebrew/bin/brew shellenv zsh)"
           sudo -n /opt/homebrew/bin/brew services start tailscale
 
           # Wait for the daemon socket to appear before talking to it
@@ -62,9 +65,11 @@ jobs:
 
           # --reset makes the command idempotent: re-running applies exactly
           # these settings instead of failing on a mismatch with the old ones.
+          eval "$(/opt/homebrew/bin/brew shellenv zsh)"
           sudo -n tailscale up "${args[@]}"
 
       - name: Show status
         run: |
+          eval "$(/opt/homebrew/bin/brew shellenv zsh)"
           tailscale status
           echo "Tailscale IPv4: $(tailscale ip -4)"
