@@ -7,7 +7,7 @@ on:
       tags:
         description: "Comma-separated ACL tags to advertise (e.g. tag:ci). Must match the tags on the auth key."
         required: false
-        default: "tag:actions-runner"
+        default: "tag:action-runner"
 
 permissions:
   contents: read
