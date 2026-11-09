@@ -1,0 +1,70 @@
+name: Tailscale setup
+
+on:
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+    inputs:
+      tags:
+        description: "Comma-separated ACL tags to advertise (e.g. tag:ci). Must match the tags on the auth key."
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+
+  tailscale:
+    # Sets a matrix of labels on which to run the setup
+    strategy:
+      fail-fast: false
+      matrix:
+        runner:
+          - mac-3
+    # The job will run in parallel for each of the runner labels listed above
+    runs-on: ${{ matrix.runner }}
+
+    steps:
+      - name: Install Tailscale
+        env:
+          HOMEBREW_NO_ASK: 1
+        run: brew install tailscale
+
+      # tailscaled needs root to create the network interface, so it runs as a
+      # system LaunchDaemon. Requires passwordless sudo for the runner user.
+      - name: Start tailscaled
+        run: |
+          sudo -n brew services start tailscale
+
+          # Wait for the daemon socket to appear before talking to it
+          for i in $(seq 1 30); do
+            [ -S /var/run/tailscaled.socket ] && exit 0
+            sleep 1
+          done
+          echo "::error::tailscaled did not start within 30 seconds"
+          exit 1
+
+      - name: Join tailnet
+        env:
+          TS_AUTHKEY: ${{ secrets.TAILSCALE_AUTHKEY }}
+          TS_TAGS: ${{ inputs.tags }}
+          TS_HOSTNAME: ${{ matrix.runner }}
+        run: |
+          if [ -z "$TS_AUTHKEY" ]; then
+            echo "::error::The TAILSCALE_AUTHKEY secret is not set"
+            exit 1
+          fi
+
+          args=(--auth-key="$TS_AUTHKEY" --hostname="$TS_HOSTNAME" --reset)
+          if [ -n "$TS_TAGS" ]; then
+            args+=(--advertise-tags="$TS_TAGS")
+          fi
+
+          # --reset makes the command idempotent: re-running applies exactly
+          # these settings instead of failing on a mismatch with the old ones.
+          sudo -n tailscale up "${args[@]}"
+
+      - name: Show status
+        run: |
+          tailscale status
+          echo "Tailscale IPv4: $(tailscale ip -4)"
