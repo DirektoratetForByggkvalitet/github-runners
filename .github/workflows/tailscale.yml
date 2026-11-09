@@ -28,13 +28,13 @@ jobs:
       - name: Install Tailscale
         env:
           HOMEBREW_NO_ASK: 1
-        run: brew install tailscale
+        run: /opt/homebrew/bin/brew install tailscale
 
       # tailscaled needs root to create the network interface, so it runs as a
       # system LaunchDaemon. Requires passwordless sudo for the runner user.
       - name: Start tailscaled
         run: |
-          sudo -n brew services start tailscale
+          sudo -n /opt/homebrew/bin/brew services start tailscale
 
           # Wait for the daemon socket to appear before talking to it
           for i in $(seq 1 30); do
